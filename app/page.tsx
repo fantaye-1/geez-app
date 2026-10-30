@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -25,6 +26,12 @@ export default function Home() {
         {status === "error" &&
           "Supabase connection failed — check your .env.local values."}
       </p>
+      <Link
+        href="/learn/script"
+        className="rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90"
+      >
+        Start with the Fidel <span className="font-ethiopic">ሀ ለ ሐ</span>
+      </Link>
     </main>
   );
 }
