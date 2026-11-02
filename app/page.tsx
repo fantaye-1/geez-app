@@ -10,6 +10,10 @@ export default function Home() {
 
   useEffect(() => {
     async function checkConnection() {
+      if (!supabase) {
+        setStatus("error");
+        return;
+      }
       const { error } = await supabase.auth.getSession();
       setStatus(error ? "error" : "connected");
     }
