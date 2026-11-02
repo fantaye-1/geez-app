@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FIDEL_FAMILIES,
+  FIDEL_LETTERS,
   VOWEL_ORDERS,
   letterFor,
   type FidelLetter,
@@ -13,6 +14,14 @@ export default function FidelChartPage() {
   const [selected, setSelected] = useState<FidelLetter>(() =>
     letterFor(FIDEL_FAMILIES[0], VOWEL_ORDERS[0])
   );
+
+  // /learn/script?letter=hoy-4 opens with that letter selected
+  // (used by "Letters to review" on the practice page).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("letter");
+    const letter = FIDEL_LETTERS.find((l) => l.id === id);
+    if (letter) setSelected(letter);
+  }, []);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -28,6 +37,12 @@ export default function FidelChartPage() {
           vowels change; read down a column to meet each consonant. Tap any
           letter to see its sound.
         </p>
+        <Link
+          href="/learn/script/practice"
+          className="mt-4 inline-block rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90"
+        >
+          Practice →
+        </Link>
       </header>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
