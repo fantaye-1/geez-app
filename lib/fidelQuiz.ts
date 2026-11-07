@@ -106,6 +106,28 @@ export function buildRound(
 ): QuizQuestion[] {
   const families = familiesFor(set);
   const pool = families.flatMap((f) => VOWEL_ORDERS.map((o) => letterFor(f, o)));
+  return buildRoundFromPool(pool, families, rng, count);
+}
+
+/** A review round of the given letters (e.g. the ones due today). */
+export function buildReviewRound(
+  due: FidelLetter[],
+  rng: Rng = Math.random,
+  count: number = QUESTIONS_PER_ROUND
+): QuizQuestion[] {
+  return buildRoundFromPool(due, FIDEL_FAMILIES, rng, count);
+}
+
+/**
+ * Up to `count` distinct answers from `pool`; wrong choices come from
+ * `families`.
+ */
+export function buildRoundFromPool(
+  pool: FidelLetter[],
+  families: FidelFamily[],
+  rng: Rng = Math.random,
+  count: number = QUESTIONS_PER_ROUND
+): QuizQuestion[] {
   return shuffle(pool, rng)
     .slice(0, count)
     .map((answer) => ({

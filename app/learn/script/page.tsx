@@ -9,11 +9,39 @@ import {
   letterFor,
   type FidelLetter,
 } from "@/lib/fidel";
+import { fetchScriptProgress, type ProgressMap } from "@/lib/progress";
+import { isDue, localDate, type SrsState } from "@/lib/srs";
+import { useUser } from "@/lib/useUser";
+
+function formatDue(state: SrsState): string {
+  if (isDue(state, localDate())) return "due today";
+  const [y, m, d] = state.dueDate.split("-").map(Number);
+  return `next review ${new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })}`;
+}
 
 export default function FidelChartPage() {
   const [selected, setSelected] = useState<FidelLetter>(() =>
     letterFor(FIDEL_FAMILIES[0], VOWEL_ORDERS[0])
   );
+
+  // Signed-in learners see which letters they've practiced and mastered.
+  const { user } = useUser();
+  const [progress, setProgress] = useState<ProgressMap | null>(null);
+  useEffect(() => {
+    setProgress(null);
+    if (!user) return;
+    let active = true;
+    fetchScriptProgress(user.id)
+      .then((map) => active && setProgress(map))
+      .catch(() => {}); // the chart works fine without marks
+    return () => {
+      active = false;
+    };
+  }, [user]);
+  const selectedState = progress?.get(selected.id);
 
   // /learn/script?letter=hoy-4 opens with that letter selected
   // (used by "Letters to review" on the practice page).
@@ -81,20 +109,34 @@ export default function FidelChartPage() {
                   {VOWEL_ORDERS.map((order) => {
                     const letter = letterFor(family, order);
                     const isSelected = letter.id === selected.id;
+                    const status = progress?.get(letter.id)?.status;
                     return (
                       <td key={letter.id} className="p-0.5">
                         <button
                           type="button"
                           onClick={() => setSelected(letter)}
-                          aria-label={`${letter.char}, ${letter.sound}`}
+                          aria-label={`${letter.char}, ${letter.sound}${
+                            status ? `, ${status}` : ""
+                          }`}
                           aria-pressed={isSelected}
-                          className={`h-11 w-11 rounded font-ethiopic text-2xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
+                          data-status={status}
+                          className={`relative h-11 w-11 rounded font-ethiopic text-2xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
                             isSelected
                               ? "bg-rubric text-parchment"
                               : "text-ink hover:bg-parchment"
                           }`}
                         >
                           {letter.char}
+                          {status && (
+                            <span
+                              aria-hidden
+                              className={`absolute right-0.5 top-0.5 h-2 w-2 rounded-full ${
+                                status === "mastered"
+                                  ? "bg-gold"
+                                  : "border border-gold/70 bg-transparent"
+                              }`}
+                            />
+                          )}
                         </button>
                       </td>
                     );
@@ -129,8 +171,30 @@ export default function FidelChartPage() {
           <p className="mt-4 font-ethiopic text-2xl tracking-widest text-ink/70">
             {VOWEL_ORDERS.map((o) => letterFor(selected.family, o).char).join(" ")}
           </p>
+          {progress && (
+            <p className="mt-4 font-mono text-xs text-ink/70" data-testid="letter-status">
+              {!selectedState
+                ? "Not practiced yet"
+                : selectedState.status === "mastered"
+                ? `Mastered · ${formatDue(selectedState)}`
+                : `Learning · ${formatDue(selectedState)}`}
+            </p>
+          )}
         </aside>
       </div>
+
+      {progress && (
+        <p className="mt-4 flex flex-wrap items-center gap-4 font-mono text-xs text-ink/60">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-gold" /> Mastered (
+            {[...progress.values()].filter((s) => s.status === "mastered").length})
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full border border-gold/70" /> Learning (
+            {[...progress.values()].filter((s) => s.status === "learning").length})
+          </span>
+        </p>
+      )}
 
       <p className="mt-6 font-mono text-xs text-ink/50">
         Sounds use standard Ge&apos;ez transliteration: ä as in &quot;cut&quot;,
