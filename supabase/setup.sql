@@ -89,3 +89,6 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
+
+-- Letter audio (storage bucket + who may record): run
+-- supabase/fix-002-letter-audio.sql after this file.
