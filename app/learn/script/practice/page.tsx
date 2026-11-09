@@ -1,24 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { FidelLetter } from "@/lib/fidel";
+import { useEffect, useMemo, useState } from "react";
+import { FIDEL_LETTERS, type FidelLetter } from "@/lib/fidel";
 import {
   LETTER_SETS,
+  QUESTIONS_PER_ROUND,
+  buildReviewRound,
   buildRound,
-  type LetterSet,
   type QuizDirection,
   type QuizQuestion,
 } from "@/lib/fidelQuiz";
+import {
+  fetchScriptProgress,
+  saveLetterProgress,
+  type ProgressMap,
+} from "@/lib/progress";
+import { isDue, localDate, nextReview } from "@/lib/srs";
+import { useUser } from "@/lib/useUser";
 
 const CORRECT_DELAY_MS = 700;
 const WRONG_DELAY_MS = 1600;
 
 type Phase = "setup" | "playing" | "done";
+/** One of LETTER_SETS, or the letters due for review */
+type Mode = (typeof LETTER_SETS)[number]["id"] | "review";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function FidelPracticePage() {
+  const { user } = useUser();
+  const [progress, setProgress] = useState<ProgressMap | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
   const [phase, setPhase] = useState<Phase>("setup");
-  const [letterSet, setLetterSet] = useState<LetterSet>(LETTER_SETS[0]);
+  const [mode, setMode] = useState<Mode>(LETTER_SETS[0].id);
   const [direction, setDirection] = useState<QuizDirection>("letter-to-sound");
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -27,6 +43,36 @@ export default function FidelPracticePage() {
   const [missed, setMissed] = useState<FidelLetter[]>([]);
 
   const question = questions[index];
+
+  // Load saved progress whenever someone signs in (cleared on sign-out).
+  useEffect(() => {
+    setProgress(null);
+    setLoadError(false);
+    if (!user) return;
+    let active = true;
+    fetchScriptProgress(user.id)
+      .then((map) => active && setProgress(map))
+      .catch(() => active && setLoadError(true));
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const dueLetters = useMemo(() => {
+    if (!progress) return [];
+    const today = localDate();
+    return FIDEL_LETTERS.filter((l) => {
+      const s = progress.get(l.id);
+      return s && isDue(s, today);
+    });
+  }, [progress]);
+
+  // Nothing due any more (e.g. after signing out) → fall back to a set.
+  useEffect(() => {
+    if (mode === "review" && dueLetters.length === 0 && phase === "setup") {
+      setMode(LETTER_SETS[0].id);
+    }
+  }, [mode, dueLetters.length, phase]);
 
   // After an answer, pause briefly on the feedback, then move on.
   useEffect(() => {
@@ -43,20 +89,40 @@ export default function FidelPracticePage() {
   function start() {
     // Questions are random, so build them on click (not during render)
     // to avoid a server/client hydration mismatch.
-    setQuestions(buildRound(letterSet));
+    const set = LETTER_SETS.find((s) => s.id === mode);
+    setQuestions(set ? buildRound(set) : buildReviewRound(dueLetters));
     setIndex(0);
     setPicked(null);
     setMissed([]);
+    setSaveStatus("idle");
     setPhase("playing");
   }
 
   function answer(choice: FidelLetter) {
     if (picked || !question) return;
+    const correct = choice.id === question.answer.id;
     setPicked(choice);
-    if (choice.id !== question.answer.id) {
-      setMissed((m) => [...m, question.answer]);
-    }
+    if (!correct) setMissed((m) => [...m, question.answer]);
+    if (user && progress) record(user.id, question.answer, correct);
   }
+
+  function record(userId: string, letter: FidelLetter, correct: boolean) {
+    const { state, changed } = nextReview(
+      progress?.get(letter.id) ?? null,
+      correct,
+      localDate()
+    );
+    if (!changed) return;
+    setProgress((p) => new Map(p ?? []).set(letter.id, state));
+    setSaveStatus("saving");
+    saveLetterProgress(userId, letter.id, state)
+      .then(() => setSaveStatus((s) => (s === "error" ? s : "saved")))
+      .catch(() => setSaveStatus("error"));
+  }
+
+  const masteredCount = progress
+    ? [...progress.values()].filter((s) => s.status === "mastered").length
+    : 0;
 
   return (
     <main className="mx-auto max-w-xl px-4 py-8 sm:px-6">
@@ -68,6 +134,15 @@ export default function FidelPracticePage() {
       </Link>
       <h1 className="mt-4 font-display text-3xl text-ink">Fidel practice</h1>
 
+      <ProgressNote
+        signedIn={!!user}
+        loaded={!!progress}
+        loadError={loadError}
+        saveStatus={saveStatus}
+        masteredCount={masteredCount}
+        dueCount={dueLetters.length}
+      />
+
       {phase === "setup" && (
         <section className="mt-6 space-y-6">
           <fieldset>
@@ -75,12 +150,19 @@ export default function FidelPracticePage() {
               Letters
             </legend>
             <div className="mt-2 flex flex-wrap gap-2">
-              {LETTER_SETS.map((s) => (
+              {progress && (
                 <Choice
-                  key={s.id}
-                  active={letterSet.id === s.id}
-                  onClick={() => setLetterSet(s)}
+                  active={mode === "review"}
+                  disabled={dueLetters.length === 0}
+                  onClick={() => setMode("review")}
                 >
+                  {dueLetters.length > 0
+                    ? `Review due letters (${dueLetters.length})`
+                    : "Nothing due today"}
+                </Choice>
+              )}
+              {LETTER_SETS.map((s) => (
+                <Choice key={s.id} active={mode === s.id} onClick={() => setMode(s.id)}>
                   <span className="font-ethiopic">{s.label}</span>
                 </Choice>
               ))}
@@ -112,7 +194,11 @@ export default function FidelPracticePage() {
             onClick={start}
             className="rounded-md bg-rubric px-6 py-3 font-display text-lg text-parchment hover:bg-rubric/90"
           >
-            Start — 10 questions
+            Start —{" "}
+            {mode === "review"
+              ? Math.min(QUESTIONS_PER_ROUND, dueLetters.length)
+              : QUESTIONS_PER_ROUND}{" "}
+            questions
           </button>
         </section>
       )}
@@ -123,9 +209,7 @@ export default function FidelPracticePage() {
             <span>
               Question {index + 1} of {questions.length}
             </span>
-            <span>
-              {index + (picked ? 1 : 0) - missed.length} correct
-            </span>
+            <span>{index + (picked ? 1 : 0) - missed.length} correct</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/50">
             <div
@@ -224,7 +308,8 @@ export default function FidelPracticePage() {
             <button
               type="button"
               onClick={start}
-              className="rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90"
+              disabled={mode === "review" && dueLetters.length === 0}
+              className="rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90 disabled:opacity-50"
             >
               Play again
             </button>
@@ -242,12 +327,57 @@ export default function FidelPracticePage() {
   );
 }
 
+function ProgressNote({
+  signedIn,
+  loaded,
+  loadError,
+  saveStatus,
+  masteredCount,
+  dueCount,
+}: {
+  signedIn: boolean;
+  loaded: boolean;
+  loadError: boolean;
+  saveStatus: SaveStatus;
+  masteredCount: number;
+  dueCount: number;
+}) {
+  let text: React.ReactNode;
+  if (!signedIn) {
+    text = (
+      <>
+        <Link href="/login" className="text-rubric underline">
+          Sign in
+        </Link>{" "}
+        to save your progress.
+      </>
+    );
+  } else if (loadError) {
+    text = <span className="text-rubric">Couldn&apos;t load your progress — practice still works, but answers won&apos;t be saved.</span>;
+  } else if (!loaded) {
+    text = "Loading your progress…";
+  } else if (saveStatus === "error") {
+    text = <span className="text-rubric">Couldn&apos;t save your last answer — check your connection.</span>;
+  } else {
+    text = `${masteredCount} of ${FIDEL_LETTERS.length} letters mastered · ${dueCount} due for review${
+      saveStatus === "saving" ? " · saving…" : saveStatus === "saved" ? " · saved" : ""
+    }`;
+  }
+  return (
+    <p className="mt-2 font-mono text-xs text-ink/60" aria-live="polite" data-testid="progress-note">
+      {text}
+    </p>
+  );
+}
+
 function Choice({
   active,
+  disabled,
   onClick,
   children,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -255,8 +385,9 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
-      className={`rounded-md border-2 px-4 py-2 text-sm transition-colors ${
+      className={`rounded-md border-2 px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         active
           ? "border-rubric bg-rubric text-parchment"
           : "border-border bg-card text-ink hover:border-gold"
