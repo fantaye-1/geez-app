@@ -9,6 +9,7 @@ Built with Next.js, TypeScript, Tailwind CSS and Supabase.
 - **Fidel chart** (`/learn/script`): all 26 classical letter families in their seven vowel forms (182 letters). Tap any letter to see its sound, family and vowel order.
 - **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark.
 - **Sign in by email**: one-click magic link, no password.
+- **Letter audio**: tap **Hear it** on the chart. The owner (and admins with the `audio` permission) can record any letter right in the chart with the microphone: record, listen back, save.
 - **Saved progress with spaced repetition**: every answer is saved. Letters you miss come back tomorrow, and letters you know come back after 3 days, ~8 days, ~3 weeks and so on. A letter counts as *mastered* after three on-time correct reviews. **Review due letters** quizzes only what's due today, and the chart marks mastered letters with a gold dot.
 
 Everything except saving progress works without an account.
@@ -19,7 +20,8 @@ Everything except saving progress works without an account.
 - [x] Fidel practice quiz
 - [x] Email sign-in
 - [x] Saved progress and spaced repetition
-- [ ] Letter audio
+- [x] Letter audio (record in the app)
+- [ ] Record all 182 letters
 - [ ] Google sign-in
 - [ ] Vocabulary (ቃል): core words from prayer, scripture and everyday use
 - [ ] Grammar (ሰዋስው)
@@ -50,6 +52,7 @@ Everything except saving progress works without an account.
    - Create a project at [supabase.com](https://supabase.com).
    - In the **SQL editor**, run [`supabase/setup.sql`](supabase/setup.sql). It creates the `profiles` and `progress` tables, their row-level security policies, and the trigger that creates a profile on sign-up.
    - Already ran an older copy of `setup.sql`? Also run [`supabase/fix-001-profile-permissions.sql`](supabase/fix-001-profile-permissions.sql) once.
+   - For letter audio, run [`supabase/fix-002-letter-audio.sql`](supabase/fix-002-letter-audio.sql). To record, make yourself owner once in the SQL editor: `update profiles set role = 'owner' where email = 'you@example.com';`
    - Under **Authentication → URL Configuration**, add `http://localhost:3000` (and your live URL) to **Redirect URLs**, so the sign-in link brings you back to the app.
 
 3. **Add your keys**
@@ -84,16 +87,19 @@ app/
   learn/script/page.tsx        Fidel chart
   learn/script/practice/       Practice quiz
 components/SiteHeader.tsx      Header with sign-in / sign-out
+components/LetterRecorder.tsx  Record / listen back / save a letter
 lib/
   fidel.ts                     The 26 families × 7 orders, generated from Unicode
   fidelQuiz.ts                 Builds quiz rounds and wrong-answer choices
   srs.ts                       Spaced-repetition schedule (simplified SM-2)
   progress.ts                  Loads and saves progress in Supabase
+  letterAudio.ts               Lists, plays and uploads letter recordings
   useUser.ts                   Current-user hook
   supabaseClient.ts            Supabase client (null when not configured)
 supabase/
   setup.sql                    Database schema and security policies
   fix-001-*.sql                One-time patch for older setups
+  fix-002-letter-audio.sql     Audio storage bucket and who may record
 ```
 
 ## How it works
