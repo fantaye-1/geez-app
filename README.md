@@ -73,6 +73,7 @@ Everything except saving progress works without an account.
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint (`next/core-web-vitals`) |
+| `npm test` | Unit tests for `lib/` (spaced repetition, Fidel chart, quiz builder) |
 
 ### Deploying
 
