@@ -54,6 +54,7 @@ Everything except saving progress works without an account.
    - Already ran an older copy of `setup.sql`? Also run [`supabase/fix-001-profile-permissions.sql`](supabase/fix-001-profile-permissions.sql) once.
    - For letter audio, run [`supabase/fix-002-letter-audio.sql`](supabase/fix-002-letter-audio.sql). To record, make yourself owner once in the SQL editor: `update profiles set role = 'owner' where email = 'you@example.com';`
    - Under **Authentication → URL Configuration**, add `http://localhost:3000` (and your live URL) to **Redirect URLs**, so the sign-in link brings you back to the app.
+   - Optional, **Google sign-in**: in Google Cloud Console create an OAuth client ID (type *Web application*) and add `https://<your-project-id>.supabase.co/auth/v1/callback` as an authorized redirect URI. Paste its client ID and secret into Supabase → **Authentication → Providers → Google** and enable it. Then set `NEXT_PUBLIC_GOOGLE_SIGNIN=true` in `.env.local` (and in Vercel) to show the **Continue with Google** button.
 
 3. **Add your keys**
    ```bash
