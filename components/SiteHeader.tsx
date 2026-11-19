@@ -11,12 +11,12 @@ export default function SiteHeader() {
     <header className="border-b border-border bg-card/60">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="font-display text-lg text-ink hover:text-rubric">
-          <span className="font-ethiopic">ግዕዝ</span> Learn Ge&apos;ez
+          <span className="font-ethiopic" lang="gez">ግዕዝ</span> Learn Ge&apos;ez
         </Link>
 
         {/* Hidden entirely when Supabase isn't set up — lessons still work. */}
         {supabase && !loading && (
-          <nav className="flex items-center gap-3 text-sm">
+          <nav aria-label="Account" className="flex items-center gap-3 text-sm">
             {user ? (
               <>
                 <span
