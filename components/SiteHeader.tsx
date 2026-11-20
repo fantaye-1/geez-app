@@ -19,8 +19,11 @@ export default function SiteHeader() {
           <nav className="flex items-center gap-3 text-sm">
             {user ? (
               <>
+                <Link href="/progress" className="text-ink hover:text-rubric">
+                  Progress
+                </Link>
                 <span
-                  className="max-w-[12rem] truncate text-ink/70"
+                  className="hidden max-w-[12rem] truncate text-ink/70 sm:block"
                   title={user.email ?? undefined}
                 >
                   {displayName(user)}
