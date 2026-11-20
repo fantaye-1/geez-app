@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FIDEL_LETTERS, type FidelLetter } from "@/lib/fidel";
 import {
   LETTER_SETS,
@@ -11,6 +11,7 @@ import {
   type QuizDirection,
   type QuizQuestion,
 } from "@/lib/fidelQuiz";
+import { fetchLetterAudio, type AudioMap } from "@/lib/letterAudio";
 import {
   fetchScriptProgress,
   saveLetterProgress,
@@ -43,6 +44,33 @@ export default function FidelPracticePage() {
   const [missed, setMissed] = useState<FidelLetter[]>([]);
 
   const question = questions[index];
+
+  // Recordings from the chart: after each answer, play the correct letter.
+  const [audio, setAudio] = useState<AudioMap>(() => new Map());
+  const [soundOn, setSoundOn] = useState(true);
+  const player = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetchLetterAudio()
+      .then((map) => active && setAudio(map))
+      .catch(() => {}); // practice works fine without audio
+    return () => {
+      active = false;
+      player.current?.pause();
+    };
+  }, []);
+
+  function play(url: string) {
+    player.current?.pause();
+    const el = new Audio(url);
+    player.current = el;
+    el.play().catch(() => {}); // e.g. a format this browser can't decode
+  }
+
+  function toggleSound() {
+    if (soundOn) player.current?.pause();
+    setSoundOn(!soundOn);
+  }
 
   // Load saved progress whenever someone signs in (cleared on sign-out).
   useEffect(() => {
@@ -102,6 +130,8 @@ export default function FidelPracticePage() {
     if (picked || !question) return;
     const correct = choice.id === question.answer.id;
     setPicked(choice);
+    const url = audio.get(question.answer.id);
+    if (url && soundOn) play(url);
     if (!correct) setMissed((m) => [...m, question.answer]);
     if (user && progress) record(user.id, question.answer, correct);
   }
@@ -209,7 +239,19 @@ export default function FidelPracticePage() {
             <span>
               Question {index + 1} of {questions.length}
             </span>
-            <span>{index + (picked ? 1 : 0) - missed.length} correct</span>
+            <span className="flex items-center gap-3">
+              {audio.size > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSound}
+                  aria-pressed={soundOn}
+                  className="rounded border border-border px-2 py-0.5 hover:border-gold"
+                >
+                  {soundOn ? "Sound on" : "Sound off"}
+                </button>
+              )}
+              {index + (picked ? 1 : 0) - missed.length} correct
+            </span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/50">
             <div
