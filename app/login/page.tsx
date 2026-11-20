@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { displayName, useUser } from "@/lib/useUser";
 
 type Status =
   | { kind: "idle" }
   | { kind: "sending" }
+  | { kind: "redirecting" }
   | { kind: "sent"; email: string }
   | { kind: "error"; message: string };
 
@@ -15,6 +16,26 @@ export default function LoginPage() {
   const { user, loading } = useUser();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  // If Google sign-in fails (or is cancelled), Supabase sends the visitor
+  // back with ?error_description=… (or #error_description=…). Show it.
+  useEffect(() => {
+    const message = oauthErrorFromUrl(window.location);
+    if (message) setStatus({ kind: "error", message });
+  }, []);
+
+  async function signInWithGoogle() {
+    if (!supabase) return;
+    setStatus({ kind: "redirecting" });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      // Same rule as the email link: this URL must be listed in
+      // Supabase → Authentication → URL Configuration.
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+    // On success the browser is already leaving for Google.
+    if (error) setStatus({ kind: "error", message: error.message });
+  }
 
   async function sendLink(e: FormEvent) {
     e.preventDefault();
@@ -80,6 +101,23 @@ export default function LoginPage() {
           </div>
         ) : (
           <form onSubmit={sendLink} className="space-y-4">
+            {isGoogleSignInEnabled && (
+              <>
+                <button
+                  type="button"
+                  onClick={signInWithGoogle}
+                  disabled={status.kind === "redirecting" || status.kind === "sending"}
+                  className="w-full rounded-md border border-border bg-parchment px-5 py-2.5 font-display text-ink hover:border-gold disabled:opacity-60"
+                >
+                  {status.kind === "redirecting"
+                    ? "Opening Google…"
+                    : "Continue with Google"}
+                </button>
+                <p className="text-center font-mono text-xs uppercase tracking-wide text-ink/60">
+                  or
+                </p>
+              </>
+            )}
             <label className="block">
               <span className="font-mono text-xs uppercase tracking-wide text-ink/60">
                 Email
@@ -96,7 +134,7 @@ export default function LoginPage() {
             </label>
             <button
               type="submit"
-              disabled={status.kind === "sending"}
+              disabled={status.kind === "sending" || status.kind === "redirecting"}
               className="w-full rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90 disabled:opacity-60"
             >
               {status.kind === "sending" ? "Sending…" : "Email me a sign-in link"}
@@ -114,4 +152,21 @@ export default function LoginPage() {
       </div>
     </main>
   );
+}
+
+/**
+ * Google sign-in stays hidden until the Google provider is switched on in
+ * Supabase (see README) and NEXT_PUBLIC_GOOGLE_SIGNIN=true is set. Without
+ * the provider, the button would only lead to a Supabase error page.
+ */
+const isGoogleSignInEnabled = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === "true";
+
+/** The error Supabase put in the redirect URL after a failed OAuth sign-in. */
+function oauthErrorFromUrl(location: Location): string | null {
+  for (const part of [location.search, location.hash.replace(/^#/, "?")]) {
+    const params = new URLSearchParams(part);
+    const message = params.get("error_description") ?? params.get("error");
+    if (message) return message;
+  }
+  return null;
 }
