@@ -9,7 +9,8 @@ const PREFERRED_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "a
 type State =
   | { kind: "idle" }
   | { kind: "recording" }
-  | { kind: "preview"; blob: Blob; url: string }
+  /** `error` is set when saving this take failed; the take is kept for a retry. */
+  | { kind: "preview"; blob: Blob; url: string; error?: string }
   | { kind: "saving"; blob: Blob; url: string }
   | { kind: "error"; message: string };
 
@@ -59,7 +60,15 @@ export default function LetterRecorder({
       return;
     }
     const mimeType = PREFERRED_TYPES.find((t) => MediaRecorder.isTypeSupported(t));
-    const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch {
+      // Release the mic, otherwise the browser keeps showing it as in use.
+      stream.getTracks().forEach((t) => t.stop());
+      setState({ kind: "error", message: "This browser can't record audio." });
+      return;
+    }
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
     rec.onstop = () => {
@@ -70,7 +79,14 @@ export default function LetterRecorder({
       setState({ kind: "preview", blob, url: URL.createObjectURL(blob) });
     };
     recorder.current = rec;
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      recorder.current = null;
+      stream.getTracks().forEach((t) => t.stop());
+      setState({ kind: "error", message: "Couldn't start recording. Try again." });
+      return;
+    }
     setState({ kind: "recording" });
     stopTimer.current = setTimeout(() => rec.state === "recording" && rec.stop(), MAX_SECONDS * 1000);
   }
@@ -94,9 +110,12 @@ export default function LetterRecorder({
       setState({ kind: "idle" });
       onSaved(saved);
     } catch (e) {
+      // Keep the take so a network hiccup doesn't mean recording it again.
       setState({
-        kind: "error",
-        message: `Couldn't save: ${e instanceof Error ? e.message : "unknown error"}`,
+        kind: "preview",
+        blob,
+        url,
+        error: `Couldn't save: ${e instanceof Error ? e.message : "unknown error"}. Try Save again.`,
       });
     }
   }
@@ -130,7 +149,7 @@ export default function LetterRecorder({
               disabled={state.kind === "saving"}
               className="rounded-md bg-rubric px-3 py-1.5 text-sm text-parchment hover:bg-rubric/90 disabled:opacity-60"
             >
-              {state.kind === "saving" ? "Saving…" : "Save"}
+              {state.kind === "saving" ? "Saving…" : state.kind === "preview" && state.error ? "Retry save" : "Save"}
             </button>
             <button type="button" onClick={discard} disabled={state.kind === "saving"} className={button}>
               Discard
@@ -141,9 +160,9 @@ export default function LetterRecorder({
       {state.kind === "recording" && (
         <p className="mt-2 text-xs text-ink/60">Say the letter once — stops by itself after {MAX_SECONDS} seconds.</p>
       )}
-      {state.kind === "error" && (
+      {(state.kind === "error" || (state.kind === "preview" && state.error)) && (
         <p className="mt-2 text-xs text-rubric" role="alert">
-          {state.message}
+          {state.kind === "error" ? state.message : state.error}
         </p>
       )}
     </div>
