@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # The repo has no package-lock.json yet. Use `npm ci` once one is
+      # committed; until then fall back to `npm install`.
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Test
+        run: npm test --if-present
+
+      - name: Lint
+        run: npm run lint
+
+      # Supabase keys are not needed: the app builds and runs without them
+      # (sign-in is hidden when they are missing).
+      - name: Build
+        run: npm run build
