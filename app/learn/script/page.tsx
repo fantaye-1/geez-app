@@ -112,7 +112,7 @@ export default function FidelChartPage() {
               <tr className="border-b border-border">
                 <th
                   scope="col"
-                  className="sticky left-0 bg-card px-3 py-2 text-left font-mono text-xs font-medium text-ink/60"
+                  className="sticky left-0 bg-card px-2 py-2 text-left font-mono text-xs font-medium text-ink/60 sm:px-3"
                 >
                   Family
                 </th>
@@ -133,7 +133,7 @@ export default function FidelChartPage() {
                 <tr key={family.id} className="border-b border-border/50 last:border-0">
                   <th
                     scope="row"
-                    className="sticky left-0 bg-card px-3 py-1 text-left font-mono text-xs font-normal text-ink/70"
+                    className="sticky left-0 bg-card px-2 py-1 text-left font-mono text-xs font-normal text-ink/70 sm:px-3"
                   >
                     {family.name}
                   </th>
@@ -142,7 +142,7 @@ export default function FidelChartPage() {
                     const isSelected = letter.id === selected.id;
                     const status = progress?.get(letter.id)?.status;
                     return (
-                      <td key={letter.id} className="p-0.5">
+                      <td key={letter.id} className="p-0 sm:p-0.5">
                         <button
                           type="button"
                           onClick={() => setSelected(letter)}
@@ -151,7 +151,7 @@ export default function FidelChartPage() {
                           }`}
                           aria-pressed={isSelected}
                           data-status={status}
-                          className={`relative h-11 w-11 rounded font-ethiopic text-2xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
+                          className={`relative h-10 w-10 rounded font-ethiopic text-xl transition-colors sm:h-11 sm:w-11 sm:text-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
                             isSelected
                               ? "bg-rubric text-parchment"
                               : "text-ink hover:bg-parchment"
@@ -178,26 +178,38 @@ export default function FidelChartPage() {
           </table>
         </div>
 
-        {/* Detail panel */}
+        {/* Detail panel. On phones it sits above the chart and stays pinned
+            to the top while scrolling, so tapping a letter in the lower rows
+            still shows its sound; on wide screens it's the sidebar. */}
         <aside
           aria-live="polite"
-          className="rounded-lg border border-border bg-card p-6 text-center lg:sticky lg:top-6 lg:w-64"
+          data-testid="letter-detail"
+          className="sticky top-2 z-10 order-first rounded-lg border border-border bg-card p-4 shadow-md lg:order-none lg:top-6 lg:w-64 lg:p-6 lg:text-center lg:shadow-none"
         >
-          <div className="font-ethiopic text-8xl leading-none text-rubric">
-            {selected.char}
+          <div className="flex items-center gap-4 lg:block">
+            <div className="font-ethiopic text-6xl leading-none text-rubric lg:text-8xl">
+              {selected.char}
+            </div>
+            <div className="min-w-0 lg:mt-4">
+              <div className="font-display text-2xl text-ink lg:text-3xl">
+                {selected.sound}
+              </div>
+              <div className="font-mono text-xs text-ink/60 lg:hidden">
+                {selected.family.name} · form {selected.order.order}
+              </div>
+              {selectedAudio && (
+                <button
+                  type="button"
+                  onClick={() => play(selectedAudio)}
+                  className="mt-2 inline-flex items-center gap-2 rounded-full border border-border px-4 py-1.5 text-sm text-ink hover:border-gold lg:mt-3"
+                  aria-label={`Hear ${selected.char}`}
+                >
+                  <span aria-hidden>🔊</span> Hear it
+                </button>
+              )}
+            </div>
           </div>
-          <div className="mt-4 font-display text-3xl text-ink">{selected.sound}</div>
-          {selectedAudio && (
-            <button
-              type="button"
-              onClick={() => play(selectedAudio)}
-              className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-1.5 text-sm text-ink hover:border-gold"
-              aria-label={`Hear ${selected.char}`}
-            >
-              <span aria-hidden>🔊</span> Hear it
-            </button>
-          )}
-          <dl className="mt-4 space-y-1 text-sm text-ink/80">
+          <dl className="mt-4 hidden space-y-1 text-sm text-ink/80 lg:block">
             <div>
               <dt className="inline text-ink/60">Family: </dt>
               <dd className="inline">{selected.family.name}</dd>
@@ -209,11 +221,11 @@ export default function FidelChartPage() {
               </dd>
             </div>
           </dl>
-          <p className="mt-4 font-ethiopic text-2xl tracking-widest text-ink/70">
+          <p className="mt-4 hidden font-ethiopic text-2xl tracking-widest text-ink/70 lg:block">
             {VOWEL_ORDERS.map((o) => letterFor(selected.family, o).char).join(" ")}
           </p>
           {progress && (
-            <p className="mt-4 font-mono text-xs text-ink/70" data-testid="letter-status">
+            <p className="mt-2 font-mono text-xs text-ink/70 lg:mt-4" data-testid="letter-status">
               {!selectedState
                 ? "Not practiced yet"
                 : selectedState.status === "mastered"
