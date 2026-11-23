@@ -16,4 +16,10 @@ export function siteUrl(): string {
 }
 
 /** Public pages, for the sitemap. */
-export const PUBLIC_PATHS = ["/", "/learn/script", "/learn/script/practice"] as const;
+export const PUBLIC_PATHS = [
+  "/",
+  "/learn/script",
+  "/learn/script/practice",
+  "/learn/vocabulary",
+  "/learn/vocabulary/practice",
+] as const;
