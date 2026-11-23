@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { stableUser } from "@/lib/authUser";
 import { supabase } from "@/lib/supabaseClient";
 
 export type UserState = {
@@ -24,13 +25,31 @@ export function useUser(): UserState {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
+    // Once an auth event has arrived it is newer than whatever getSession()
+    // read, so a late getSession() result must not overwrite it.
+    let heardEvent = false;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setState({ user: data.session?.user ?? null, loading: false });
-    });
+    const update = (user: User | null) =>
+      setState((prev) => {
+        const next = stableUser(prev.user, user);
+        // Same account, already loaded → keep the same state object so
+        // nothing re-renders or refetches.
+        return next === prev.user && !prev.loading ? prev : { user: next, loading: false };
+      });
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active && !heardEvent) update(data.session?.user ?? null);
+      })
+      // Don't leave the app stuck "loading" if the session can't be read.
+      .catch(() => {
+        if (active && !heardEvent) update(null);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({ user: session?.user ?? null, loading: false });
+      heardEvent = true;
+      if (active) update(session?.user ?? null);
     });
 
     return () => {
