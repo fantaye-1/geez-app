@@ -22,15 +22,39 @@ create table profiles (
 create table progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references profiles(id) on delete cascade not null,
-  content_type text not null,   -- 'script' | 'vocabulary' | 'grammar' | 'reading'
-  content_id text not null,     -- e.g. "hoy-4" for the 4th vowel order of the Hoy family
-  status text not null default 'learning',  -- 'learning' | 'mastered'
-  srs_ease numeric default 2.5,             -- SM-2 spaced-repetition fields
-  srs_interval_days integer default 1,
-  srs_due_date date default current_date,
-  updated_at timestamptz not null default now(),
+  content_type text not null    -- 'script' | 'vocabulary' | 'grammar' | 'reading'
+    constraint progress_content_type_check
+    check (content_type in ('script', 'vocabulary', 'grammar', 'reading')),
+  content_id text not null      -- e.g. "hoy-4" for the 4th vowel order of the Hoy family
+    constraint progress_content_id_check check (char_length(content_id) between 1 and 64),
+  status text not null default 'learning'
+    constraint progress_status_check check (status in ('learning', 'mastered')),
+  -- SM-2 spaced-repetition fields. The app keeps ease in 1.3–2.8 and
+  -- intervals in 1–180 days; the checks leave headroom for tuning.
+  srs_ease numeric not null default 2.5
+    constraint progress_srs_ease_check check (srs_ease between 1 and 5),
+  srs_interval_days integer not null default 1
+    constraint progress_srs_interval_check check (srs_interval_days between 1 and 3650),
+  srs_due_date date not null default current_date,
+  updated_at timestamptz not null default now(),  -- set by the trigger below
   unique (user_id, content_type, content_id)
 );
+
+-- updated_at always comes from the database clock, not the learner's device.
+create function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+create trigger progress_set_updated_at
+  before insert or update on progress
+  for each row execute procedure public.set_updated_at();
 
 -- Row Level Security: users can only ever see/edit their own progress,
 -- no matter what the frontend code does — enforced at the database level.
