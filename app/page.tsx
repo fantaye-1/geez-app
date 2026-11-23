@@ -31,7 +31,8 @@ const LESSONS: Lesson[] = [
   {
     title: "Vocabulary",
     ethiopic: "ቃል",
-    description: "Core words from prayer, scripture and everyday use.",
+    description: "Core words from prayer, scripture and everyday use, each with transliteration and meaning.",
+    href: "/learn/vocabulary",
   },
   {
     title: "Grammar",
