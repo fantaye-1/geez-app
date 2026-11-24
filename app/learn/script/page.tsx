@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import LetterRecorder from "@/components/LetterRecorder";
 import { canManageAudio, fetchLetterAudio, type AudioMap } from "@/lib/letterAudio";
 import {
@@ -11,6 +11,7 @@ import {
   letterFor,
   type FidelLetter,
 } from "@/lib/fidel";
+import { moveInGrid } from "@/lib/gridNav";
 import { fetchScriptProgress, type ProgressMap } from "@/lib/progress";
 import { isDue, localDate, type SrsState } from "@/lib/srs";
 import { useUser } from "@/lib/useUser";
@@ -74,6 +75,27 @@ export default function FidelChartPage() {
     el.play().catch(() => {}); // e.g. a format this browser can't decode
   }
 
+  // Keyboard: only the selected letter is a Tab stop; arrow keys (plus
+  // Home/End, Ctrl+Home/End, PageUp/PageDown) move the selection.
+  const cells = useRef(new Map<string, HTMLButtonElement>());
+  function onChartKeyDown(e: KeyboardEvent) {
+    const next = moveInGrid(
+      {
+        row: FIDEL_FAMILIES.indexOf(selected.family),
+        col: VOWEL_ORDERS.indexOf(selected.order),
+      },
+      e.key,
+      FIDEL_FAMILIES.length,
+      VOWEL_ORDERS.length,
+      { ctrl: e.ctrlKey || e.metaKey }
+    );
+    if (!next) return;
+    e.preventDefault(); // don't scroll the page
+    const letter = letterFor(FIDEL_FAMILIES[next.row], VOWEL_ORDERS[next.col]);
+    setSelected(letter);
+    cells.current.get(letter.id)?.focus();
+  }
+
   // /learn/script?letter=hoy-4 opens with that letter selected
   // (used by "Letters to review" on the practice page).
   useEffect(() => {
@@ -107,7 +129,12 @@ export default function FidelChartPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* Chart */}
         <div className="overflow-x-auto rounded-lg border border-border bg-card lg:flex-1">
-          <table className="w-full border-collapse text-center">
+          <table
+            className="w-full border-collapse text-center"
+            aria-label="Fidel chart"
+            aria-describedby="fidel-keys"
+            onKeyDown={onChartKeyDown}
+          >
             <thead>
               <tr className="border-b border-border">
                 <th
@@ -145,6 +172,11 @@ export default function FidelChartPage() {
                       <td key={letter.id} className="p-0 sm:p-0.5">
                         <button
                           type="button"
+                          ref={(el) => {
+                            if (el) cells.current.set(letter.id, el);
+                            else cells.current.delete(letter.id);
+                          }}
+                          tabIndex={isSelected ? 0 : -1}
                           onClick={() => setSelected(letter)}
                           aria-label={`${letter.char}, ${letter.sound}${
                             status ? `, ${status}` : ""
@@ -266,7 +298,11 @@ export default function FidelChartPage() {
         </p>
       )}
 
-      <p className="mt-6 font-mono text-xs text-ink/50">
+      <p id="fidel-keys" className="mt-6 font-mono text-xs text-ink/50">
+        Keyboard: Tab into the chart, then use the arrow keys to move between
+        letters (Home/End for the row, Page Up/Down to jump five rows).
+      </p>
+      <p className="mt-2 font-mono text-xs text-ink/50">
         Sounds use standard Ge&apos;ez transliteration: ä as in &quot;cut&quot;,
         ə is a short neutral vowel, and a dot under a letter (ḥ, ṭ, ṣ…) marks
         an emphatic consonant.
