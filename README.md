@@ -7,7 +7,9 @@ Built with Next.js, TypeScript, Tailwind CSS and Supabase.
 ## What you can do today
 
 - **Fidel chart** (`/learn/script`): all 26 classical letter families in their seven vowel forms (182 letters). Tap any letter to see its sound, family and vowel order.
-- **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark. On a keyboard, press 1–4 to answer.
+- **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark.
+- **Vocabulary** (`/learn/vocabulary`): the first core words, with transliteration and meaning, and a **practice quiz** (`/learn/vocabulary/practice`): 10-question rounds, word → meaning or meaning → word. Wrong choices come from the same theme first.
+
 - **Sign in by email**: one-click magic link, no password.
 - **Letter audio**: tap **Hear it** on the chart. The owner (and admins with the `audio` permission) can record any letter right in the chart with the microphone: record, listen back, save. In practice, the correct letter's recording plays after each answer (with a **Sound on/off** toggle).
 - **Saved progress with spaced repetition**: every answer is saved. Letters you miss come back tomorrow, and letters you know come back after 3 days, ~8 days, ~3 weeks and so on. A letter counts as *mastered* after three on-time correct reviews. **Review due letters** quizzes only what's due today, and the chart marks mastered letters with a gold dot.
@@ -74,7 +76,7 @@ Everything except saving progress works without an account.
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint (`next/core-web-vitals`) |
-| `npm test` | Unit tests for `lib/` (spaced repetition, Fidel chart, quiz builder) |
+| `npm test` | Unit tests for `lib/` (spaced repetition, Fidel chart, quiz builders, vocabulary) |
 
 ### Deploying
 
@@ -88,11 +90,14 @@ app/
   login/page.tsx               Email sign-in
   learn/script/page.tsx        Fidel chart
   learn/script/practice/       Practice quiz
+  learn/vocabulary/            Word list and practice quiz
 components/SiteHeader.tsx      Header with sign-in / sign-out
 components/LetterRecorder.tsx  Record / listen back / save a letter
 lib/
   fidel.ts                     The 26 families × 7 orders, generated from Unicode
   fidelQuiz.ts                 Builds quiz rounds and wrong-answer choices
+  vocabulary.ts                Vocabulary words, added in small checked batches
+  vocabQuiz.ts                 Builds vocabulary quiz rounds
   srs.ts                       Spaced-repetition schedule (simplified SM-2)
   progress.ts                  Loads and saves progress in Supabase
   letterAudio.ts               Lists, plays and uploads letter recordings

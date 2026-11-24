@@ -26,6 +26,12 @@ export default function VocabularyPage() {
         </Link>
         , then check the transliteration and meaning. More words are added in small batches.
       </p>
+      <Link
+        href="/learn/vocabulary/practice"
+        className="mt-5 inline-block rounded-md bg-rubric px-5 py-2.5 font-display text-parchment hover:bg-rubric/90"
+      >
+        Practice these words
+      </Link>
 
       {VOCAB_THEMES.map((theme) => {
         const words = wordsByTheme(theme.id);
