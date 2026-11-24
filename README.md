@@ -7,7 +7,7 @@ Built with Next.js, TypeScript, Tailwind CSS and Supabase.
 ## What you can do today
 
 - **Fidel chart** (`/learn/script`): all 26 classical letter families in their seven vowel forms (182 letters). Tap any letter to see its sound, family and vowel order.
-- **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark.
+- **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark. On a keyboard, press 1–4 to answer.
 - **Sign in by email**: one-click magic link, no password.
 - **Letter audio**: tap **Hear it** on the chart. The owner (and admins with the `audio` permission) can record any letter right in the chart with the microphone: record, listen back, save. In practice, the correct letter's recording plays after each answer (with a **Sound on/off** toggle).
 - **Saved progress with spaced repetition**: every answer is saved. Letters you miss come back tomorrow, and letters you know come back after 3 days, ~8 days, ~3 weeks and so on. A letter counts as *mastered* after three on-time correct reviews. **Review due letters** quizzes only what's due today, and the chart marks mastered letters with a gold dot.
