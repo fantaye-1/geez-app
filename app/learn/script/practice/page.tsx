@@ -11,6 +11,7 @@ import {
   type QuizDirection,
   type QuizQuestion,
 } from "@/lib/fidelQuiz";
+import { choiceIndexForKey } from "@/lib/answerKeys";
 import { fetchLetterAudio, type AudioMap } from "@/lib/letterAudio";
 import {
   fetchScriptProgress,
@@ -125,6 +126,22 @@ export default function FidelPracticePage() {
     setSaveStatus("idle");
     setPhase("playing");
   }
+
+  // Number keys answer: 1 picks the first choice, 2 the second, …
+  const answerRef = useRef(answer);
+  answerRef.current = answer;
+  useEffect(() => {
+    if (phase !== "playing" || !question || picked) return;
+    const choices = question.choices;
+    function onKeyDown(e: KeyboardEvent) {
+      const i = choiceIndexForKey(e, choices.length);
+      if (i === null) return;
+      e.preventDefault();
+      answerRef.current(choices[i]);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [phase, question, picked]);
 
   function answer(choice: FidelLetter) {
     if (picked || !question) return;
@@ -273,7 +290,7 @@ export default function FidelPracticePage() {
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3" role="group" aria-label="Answers">
-            {question.choices.map((choice) => {
+            {question.choices.map((choice, i) => {
               const isAnswer = choice.id === question.answer.id;
               const isPicked = picked?.id === choice.id;
               let tone = "border-border bg-card text-ink hover:border-gold";
@@ -286,12 +303,19 @@ export default function FidelPracticePage() {
                   type="button"
                   onClick={() => answer(choice)}
                   disabled={!!picked}
-                  className={`rounded-lg border-2 py-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${tone} ${
+                  aria-keyshortcuts={String(i + 1)}
+                  className={`relative rounded-lg border-2 py-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${tone} ${
                     direction === "letter-to-sound"
                       ? "font-display text-2xl"
                       : "font-ethiopic text-4xl"
                   }`}
                 >
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-2 top-1.5 hidden font-mono text-xs opacity-50 sm:block"
+                  >
+                    {i + 1}
+                  </span>
                   {direction === "letter-to-sound" ? choice.sound : choice.char}
                 </button>
               );
