@@ -8,7 +8,7 @@ Built with Next.js, TypeScript, Tailwind CSS and Supabase.
 
 - **Fidel chart** (`/learn/script`): all 26 classical letter families in their seven vowel forms (182 letters). Tap any letter to see its sound, family and vowel order.
 - **Fidel practice** (`/learn/script/practice`): 10-question rounds, from letter → sound or sound → letter. Wrong choices include a look-alike family (ሀ/ሐ/ኀ, ሰ/ሠ, አ/ዐ…), so you have to read the vowel mark.
-- **Vocabulary** (`/learn/vocabulary`): the first core words, with transliteration and meaning, and a **practice quiz** (`/learn/vocabulary/practice`): 10-question rounds, word → meaning or meaning → word. Wrong choices come from the same theme first.
+- **Vocabulary** (`/learn/vocabulary`): the first core words, with transliteration and meaning, and a **practice quiz** (`/learn/vocabulary/practice`): 10-question rounds, word → meaning or meaning → word. Wrong choices come from the same theme first. Signed-in learners' word answers are saved with the same spaced-repetition schedule as letters.
 
 - **Sign in by email**: one-click magic link, no password.
 - **Letter audio**: tap **Hear it** on the chart. The owner (and admins with the `audio` permission) can record any letter right in the chart with the microphone: record, listen back, save. In practice, the correct letter's recording plays after each answer (with a **Sound on/off** toggle).
@@ -100,6 +100,7 @@ lib/
   vocabQuiz.ts                 Builds vocabulary quiz rounds
   srs.ts                       Spaced-repetition schedule (simplified SM-2)
   progress.ts                  Loads and saves progress in Supabase
+  progressRows.ts              Converts progress rows to and from review state
   letterAudio.ts               Lists, plays and uploads letter recordings
   useUser.ts                   Current-user hook
   supabaseClient.ts            Supabase client (null when not configured)
@@ -112,7 +113,7 @@ supabase/
 ## How it works
 
 - **Letters are generated, not typed.** In Unicode, each Ge'ez family takes 8 consecutive code points, and the 7 vowel orders are the first 7 of them. `lib/fidel.ts` builds all 182 letters from 26 starting points, and every one was checked against its official Unicode name.
-- **Progress rows** are stored as `content_type = 'script'`, `content_id = 'hoy-4'` (family + vowel order), so future lessons can share the same table.
+- **Progress rows** are stored as `content_type = 'script'`, `content_id = 'hoy-4'` (family + vowel order) for letters and `content_type = 'vocabulary'`, `content_id = 'vocab-qal'` for words, so future lessons can share the same table.
 - **Security:** row-level security limits every learner to their own progress. Learners can edit only their display name and phone, never their role or permissions.
 
 ## Author

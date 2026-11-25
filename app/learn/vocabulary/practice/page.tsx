@@ -9,13 +9,22 @@ import {
   type VocabDirection,
   type VocabQuestion,
 } from "@/lib/vocabQuiz";
+import { fetchVocabProgress, saveWordProgress, type ProgressMap } from "@/lib/progress";
+import { isDue, localDate, nextReview } from "@/lib/srs";
+import { useUser } from "@/lib/useUser";
 
 const CORRECT_DELAY_MS = 900;
 const WRONG_DELAY_MS = 1800;
 
 type Phase = "setup" | "playing" | "done";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function VocabularyPracticePage() {
+  const { user } = useUser();
+  const [progress, setProgress] = useState<ProgressMap | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
   const [phase, setPhase] = useState<Phase>("setup");
   const [direction, setDirection] = useState<VocabDirection>("word-to-meaning");
   const [questions, setQuestions] = useState<VocabQuestion[]>([]);
@@ -25,6 +34,20 @@ export default function VocabularyPracticePage() {
 
   const question = questions[index];
   const roundSize = Math.min(VOCAB_QUESTIONS_PER_ROUND, VOCABULARY.length);
+
+  // Load saved word progress whenever someone signs in (cleared on sign-out).
+  useEffect(() => {
+    setProgress(null);
+    setLoadError(false);
+    if (!user) return;
+    let active = true;
+    fetchVocabProgress(user.id)
+      .then((map) => active && setProgress(map))
+      .catch(() => active && setLoadError(true));
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   // After an answer, pause briefly on the feedback, then move on.
   useEffect(() => {
@@ -45,13 +68,37 @@ export default function VocabularyPracticePage() {
     setIndex(0);
     setPicked(null);
     setMissed([]);
+    setSaveStatus("idle");
     setPhase("playing");
   }
 
   function answer(choice: VocabWord) {
     if (picked || !question) return;
+    const correct = choice.id === question.answer.id;
     setPicked(choice);
-    if (choice.id !== question.answer.id) setMissed((m) => [...m, question.answer]);
+    if (!correct) setMissed((m) => [...m, question.answer]);
+    if (user && progress) record(user.id, question.answer, correct);
+  }
+
+  function record(userId: string, word: VocabWord, correct: boolean) {
+    const { state, changed } = nextReview(progress?.get(word.id) ?? null, correct, localDate());
+    if (!changed) return;
+    setProgress((p) => new Map(p ?? []).set(word.id, state));
+    setSaveStatus("saving");
+    saveWordProgress(userId, word.id, state)
+      .then(() => setSaveStatus((s) => (s === "error" ? s : "saved")))
+      .catch(() => setSaveStatus("error"));
+  }
+
+  // Only count ids that are still in the word list.
+  const today = localDate();
+  let masteredCount = 0;
+  let dueCount = 0;
+  for (const w of VOCABULARY) {
+    const s = progress?.get(w.id);
+    if (!s) continue;
+    if (s.status === "mastered") masteredCount++;
+    if (isDue(s, today)) dueCount++;
   }
 
   const wordToMeaning = direction === "word-to-meaning";
@@ -65,9 +112,14 @@ export default function VocabularyPracticePage() {
         ← Vocabulary
       </Link>
       <h1 className="mt-4 font-display text-3xl text-ink">Vocabulary practice</h1>
-      <p className="mt-2 font-mono text-xs text-ink/60">
-        {VOCABULARY.length} words · progress for words isn&apos;t saved yet
-      </p>
+      <ProgressNote
+        signedIn={!!user}
+        loaded={!!progress}
+        loadError={loadError}
+        saveStatus={saveStatus}
+        masteredCount={masteredCount}
+        dueCount={dueCount}
+      />
 
       {phase === "setup" && (
         <section className="mt-6 space-y-6">
@@ -216,6 +268,50 @@ export default function VocabularyPracticePage() {
         </section>
       )}
     </main>
+  );
+}
+
+function ProgressNote({
+  signedIn,
+  loaded,
+  loadError,
+  saveStatus,
+  masteredCount,
+  dueCount,
+}: {
+  signedIn: boolean;
+  loaded: boolean;
+  loadError: boolean;
+  saveStatus: SaveStatus;
+  masteredCount: number;
+  dueCount: number;
+}) {
+  let text: React.ReactNode;
+  if (!signedIn) {
+    text = (
+      <>
+        {VOCABULARY.length} words ·{" "}
+        <Link href="/login" className="text-rubric underline">
+          Sign in
+        </Link>{" "}
+        to save your progress.
+      </>
+    );
+  } else if (loadError) {
+    text = <span className="text-rubric">Couldn&apos;t load your progress — practice still works, but answers won&apos;t be saved.</span>;
+  } else if (!loaded) {
+    text = "Loading your progress…";
+  } else if (saveStatus === "error") {
+    text = <span className="text-rubric">Couldn&apos;t save your last answer — check your connection.</span>;
+  } else {
+    text = `${masteredCount} of ${VOCABULARY.length} words mastered · ${dueCount} due for review${
+      saveStatus === "saving" ? " · saving…" : saveStatus === "saved" ? " · saved" : ""
+    }`;
+  }
+  return (
+    <p className="mt-2 font-mono text-xs text-ink/60" aria-live="polite">
+      {text}
+    </p>
   );
 }
 
