@@ -39,6 +39,17 @@ export const VOCABULARY: VocabWord[] = [
   { id: "vocab-negus", geez: "ንጉሥ", translit: "nəguś", meaning: "king", theme: "everyday" },
   { id: "vocab-salam", geez: "ሰላም", translit: "sälam", meaning: "peace", theme: "everyday" },
   { id: "vocab-lebb", geez: "ልብ", translit: "ləbb", meaning: "heart", theme: "everyday" },
+
+  // Batch 2: more of Genesis 1 (darkness, spirit, day and night), and family.
+  { id: "vocab-selmet", geez: "ጽልመት", translit: "ṣəlmät", meaning: "darkness", theme: "scripture" },
+  { id: "vocab-menfes", geez: "መንፈስ", translit: "mänfäs", meaning: "spirit", theme: "scripture" },
+  { id: "vocab-mealt", geez: "መዓልት", translit: "mäʿalt", meaning: "day, daytime", theme: "scripture" },
+  { id: "vocab-lelit", geez: "ሌሊት", translit: "lelit", meaning: "night", theme: "scripture" },
+  { id: "vocab-qeddus", geez: "ቅዱስ", translit: "qəddus", meaning: "holy", theme: "scripture" },
+  { id: "vocab-ab", geez: "አብ", translit: "ʾab", meaning: "father", theme: "everyday" },
+  { id: "vocab-weld", geez: "ወልድ", translit: "wäld", meaning: "son, child", theme: "everyday" },
+  { id: "vocab-beesi", geez: "ብእሲ", translit: "bəʾəsi", meaning: "man, husband", theme: "everyday" },
+  { id: "vocab-beesit", geez: "ብእሲት", translit: "bəʾəsit", meaning: "woman, wife", theme: "everyday" },
 ];
 
 export function wordsByTheme(theme: VocabTheme, words: VocabWord[] = VOCABULARY): VocabWord[] {
