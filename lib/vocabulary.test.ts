@@ -19,6 +19,13 @@ test("every word is written only with classical Ge'ez letters", () => {
   }
 });
 
+test("no word or meaning is listed twice", () => {
+  const spellings = VOCABULARY.map((w) => w.geez);
+  assert.equal(new Set(spellings).size, spellings.length, "duplicate Ge'ez spelling");
+  const meanings = VOCABULARY.map((w) => w.meaning.toLowerCase());
+  assert.equal(new Set(meanings).size, meanings.length, "duplicate meaning");
+});
+
 test("every word has a transliteration and a meaning", () => {
   for (const word of VOCABULARY) {
     assert.ok(word.translit.trim(), `${word.id} has no transliteration`);
